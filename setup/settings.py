@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'receitas',
-    'despesas'
+    'despesas',
+    'resumo',
 ]
 
 MIDDLEWARE = [
