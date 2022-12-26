@@ -8,14 +8,17 @@ from decimal import Decimal
 url = reverse('receita-list')
 
 
-class ReceitaViewSetTest(APITestCase):
+class ReceitaTest(APITestCase):
 
-    def cadastrar_nova_receita(self):
+    def cadastrar_nova_receita(
+            self, descricao=None, valor=None,
+            data=None
+    ):
 
         receita = Receita(
-            descricao="Receita Teste",
-            valor=Decimal('100'),
-            data=date(2022, 1, 1)
+            descricao=descricao or "Receita Teste",
+            valor=valor or Decimal('100'),
+            data=data or date(2022, 1, 1),
         )
 
         receita.save()
@@ -55,6 +58,28 @@ class ReceitaViewSetTest(APITestCase):
         self.cadastrar_nova_receita()
 
         res = self.client.get(url, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()), 1)
+
+    def test_deve_filtar_por_categoria_ao_listar_receitas_cadastradas(self):
+        self.cadastrar_nova_receita(
+            descricao='Receita Teste1')
+        self.cadastrar_nova_receita(
+            descricao='Receita Teste2')
+        self.cadastrar_nova_receita(
+            descricao='Receita Teste3')
+
+        res = self.client.get(url + '?descricao=Receita Teste2', format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()), 1)
+
+    def test_deve_listar_receitas_cadastradas_por_mes(self):
+        self.cadastrar_nova_receita(data=date(2022, 1, 1))
+        self.cadastrar_nova_receita(data=date(2022, 2, 1))
+
+        res = self.client.get(url + '2022/2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)

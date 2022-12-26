@@ -1,6 +1,5 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
-from faker import Faker
 from django.urls import reverse
 from despesas.models import Despesa
 from datetime import date
@@ -9,14 +8,18 @@ from decimal import Decimal
 url = reverse('despesa-list')
 
 
-class DespesaViewSetTest(APITestCase):
+class DespesaTest(APITestCase):
 
-    def cadastrar_nova_despesa(self):
+    def cadastrar_nova_despesa(
+        self, descricao=None, valor=None,
+        data=None, categoria=None
+    ):
 
         despesa = Despesa(
-            descricao="Despesa Teste",
-            valor=Decimal('100'),
-            data=date(2022, 1, 1)
+            descricao=descricao or "Despesa Teste",
+            valor=valor or Decimal('100'),
+            data=data or date(2022, 1, 1),
+            categoria=categoria or 'Outros'
         )
         despesa.save()
 
@@ -24,7 +27,8 @@ class DespesaViewSetTest(APITestCase):
         despesa = dict(
             descricao="Despesa Teste",
             valor=Decimal('100'),
-            data=date(2022, 1, 1)
+            data=date(2022, 1, 1),
+            categoria='Alimentação'
         )
 
         res = self.client.post(url, despesa, format='json')
@@ -34,6 +38,35 @@ class DespesaViewSetTest(APITestCase):
         self.assertAlmostEqual(
             Decimal(despesa['valor']), Despesa.objects.get().valor)
         self.assertEqual(despesa['data'], Despesa.objects.get().data)
+        self.assertEqual(despesa['categoria'], Despesa.objects.get().categoria)
+
+    def test_nao_deve_cadastrar_despesas_com_categoria_invalida(self):
+        despesa = dict(
+            descricao="Despesa Teste",
+            valor=Decimal('100'),
+            data=date(2022, 1, 1),
+            categoria='Outra Descrição'
+        )
+
+        res = self.client.post(url, despesa, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_deve_atribuir_categoria_outras_ao_cadastrar_nova_despesa_se_categoria_nao_for_informada(self):
+        despesa = dict(
+            descricao="Despesa Teste",
+            valor=Decimal('100'),
+            data=date(2022, 1, 1),
+        )
+
+        res = self.client.post(url, despesa, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(despesa['descricao'], Despesa.objects.get().descricao)
+        self.assertAlmostEqual(
+            Decimal(despesa['valor']), Despesa.objects.get().valor)
+        self.assertEqual(despesa['data'], Despesa.objects.get().data)
+        self.assertEqual("Outras", Despesa.objects.get().categoria)
 
     def test_nao_deve_cadastrar_duas_despesas_com_mesma_descricao_dentro_do_mesmo_mes(self):
         despesa_1 = dict(
@@ -55,6 +88,28 @@ class DespesaViewSetTest(APITestCase):
         self.cadastrar_nova_despesa()
 
         res = self.client.get(url, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()), 1)
+
+    def test_deve_filtar_por_categoria_ao_listar_despesas_cadastradas(self):
+        self.cadastrar_nova_despesa(
+            descricao='Despesa Teste1')
+        self.cadastrar_nova_despesa(
+            descricao='Despesa Teste2')
+        self.cadastrar_nova_despesa(
+            descricao='Despesa Teste3')
+
+        res = self.client.get(url + '?descricao=Despesa Teste2', format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()), 1)
+
+    def test_deve_listar_despesas_cadastradas_por_mes(self):
+        self.cadastrar_nova_despesa(data=date(2022, 1, 1))
+        self.cadastrar_nova_despesa(data=date(2022, 2, 1))
+
+        res = self.client.get(url + '2022/2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
