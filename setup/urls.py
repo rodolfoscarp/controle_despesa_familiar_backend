@@ -4,6 +4,10 @@ from receitas.views import ReceitaViewSet, ReceitaPorMesView
 from despesas.views import DespesaViewSet, DespesasPorMesView
 from resumo.views import ResumoPorMesView
 from rest_framework import routers
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 router = routers.DefaultRouter()
 router.register(r'receitas', ReceitaViewSet)
@@ -17,5 +21,7 @@ urlpatterns = [
     path(r'despesas/<int:ano>/<int:mes>',
          DespesasPorMesView.as_view(), name='despesa_mes'),
     path(r'resumo/<int:ano>/<int:mes>',
-         ResumoPorMesView.as_view(), name='resumo_mes')
+         ResumoPorMesView.as_view(), name='resumo_mes'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

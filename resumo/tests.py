@@ -1,12 +1,36 @@
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from django.urls import reverse
 from despesas.models import Despesa
 from receitas.models import Receita
 from datetime import date
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class ResumoTest(APITestCase):
+
+    username = "test_user"
+    password = "123456"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(ResumoTest, cls).setUpClass()
+
+        User = get_user_model()
+
+        user = User.objects.create(
+            username=cls.username,
+            password=cls.password
+        )
+
+        refresh = RefreshToken.for_user(user)
+
+        client = APIClient()
+        refresh = RefreshToken.for_user(user)
+        client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        cls.api_client = client
 
     def cadastrar_nova_receita(
             self, descricao=None, valor=None,
@@ -55,7 +79,7 @@ class ResumoTest(APITestCase):
         self.cadastrar_nova_receita(
             data=data, descricao="Receita3", valor=Decimal('20'))
 
-        res = self.client.get(
+        res = self.api_client.get(
             reverse('resumo_mes', kwargs={'ano': 2022, 'mes': 1}))
 
         response_data = res.json()

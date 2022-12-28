@@ -1,14 +1,37 @@
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.urls import reverse
 from receitas.models import Receita
 from datetime import date
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 url = reverse('receita-list')
 
 
 class ReceitaTest(APITestCase):
+    username = "test_user"
+    password = "123456"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(ReceitaTest, cls).setUpClass()
+
+        User = get_user_model()
+
+        user = User.objects.create(
+            username=cls.username,
+            password=cls.password
+        )
+
+        refresh = RefreshToken.for_user(user)
+
+        client = APIClient()
+        refresh = RefreshToken.for_user(user)
+        client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        cls.api_client = client
 
     def cadastrar_nova_receita(
             self, descricao=None, valor=None,
@@ -30,7 +53,7 @@ class ReceitaTest(APITestCase):
             data=date(2022, 1, 1)
         )
 
-        res = self.client.post(url, receita, format='json')
+        res = self.api_client.post(url, receita, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(receita['descricao'], Receita.objects.get().descricao)
@@ -48,16 +71,16 @@ class ReceitaTest(APITestCase):
         receita_2 = receita_1.copy()
         receita_2['data'] = date(2022, 1, 2)
 
-        self.client.post(url, receita_1, format='json')
+        self.api_client.post(url, receita_1, format='json')
 
-        res = self.client.post(url, receita_2, format='json')
+        res = self.api_client.post(url, receita_2, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_deve_listar_receitas_cadastradas(self):
         self.cadastrar_nova_receita()
 
-        res = self.client.get(url, format='json')
+        res = self.api_client.get(url, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -70,7 +93,8 @@ class ReceitaTest(APITestCase):
         self.cadastrar_nova_receita(
             descricao='Receita Teste3')
 
-        res = self.client.get(url + '?descricao=Receita Teste2', format='json')
+        res = self.api_client.get(
+            url + '?descricao=Receita Teste2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -79,7 +103,7 @@ class ReceitaTest(APITestCase):
         self.cadastrar_nova_receita(data=date(2022, 1, 1))
         self.cadastrar_nova_receita(data=date(2022, 2, 1))
 
-        res = self.client.get(url + '2022/2', format='json')
+        res = self.api_client.get(url + '2022/2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -96,7 +120,7 @@ class ReceitaTest(APITestCase):
 
         pk = receita.pk
 
-        res = self.client.put(f'{url}{pk}/', data=data, format='json')
+        res = self.api_client.put(f'{url}{pk}/', data=data, format='json')
 
         receita_atualizada = Receita.objects.get()
 
@@ -111,6 +135,6 @@ class ReceitaTest(APITestCase):
 
         pk = receita.pk
 
-        res = self.client.delete(f'{url}{pk}/', format='json')
+        res = self.api_client.delete(f'{url}{pk}/', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)

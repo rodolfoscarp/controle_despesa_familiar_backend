@@ -1,14 +1,38 @@
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.urls import reverse
 from despesas.models import Despesa
 from datetime import date
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 url = reverse('despesa-list')
 
 
 class DespesaTest(APITestCase):
+
+    username = "test_user"
+    password = "123456"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(DespesaTest, cls).setUpClass()
+
+        User = get_user_model()
+
+        user = User.objects.create(
+            username=cls.username,
+            password=cls.password
+        )
+
+        refresh = RefreshToken.for_user(user)
+
+        client = APIClient()
+        refresh = RefreshToken.for_user(user)
+        client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        cls.api_client = client
 
     def cadastrar_nova_despesa(
         self, descricao=None, valor=None,
@@ -31,7 +55,7 @@ class DespesaTest(APITestCase):
             categoria='Alimentação'
         )
 
-        res = self.client.post(url, despesa, format='json')
+        res = self.api_client.post(url, despesa, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(despesa['descricao'], Despesa.objects.get().descricao)
@@ -48,7 +72,7 @@ class DespesaTest(APITestCase):
             categoria='Outra Descrição'
         )
 
-        res = self.client.post(url, despesa, format='json')
+        res = self.api_client.post(url, despesa, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -59,7 +83,7 @@ class DespesaTest(APITestCase):
             data=date(2022, 1, 1),
         )
 
-        res = self.client.post(url, despesa, format='json')
+        res = self.api_client.post(url, despesa, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(despesa['descricao'], Despesa.objects.get().descricao)
@@ -78,16 +102,16 @@ class DespesaTest(APITestCase):
         despesa_2 = despesa_1.copy()
         despesa_2['data'] = date(2022, 1, 2)
 
-        self.client.post(url, despesa_1, format='json')
+        self.api_client.post(url, despesa_1, format='json')
 
-        res = self.client.post(url, despesa_2, format='json')
+        res = self.api_client.post(url, despesa_2, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_deve_listar_despesas_cadastradas(self):
         self.cadastrar_nova_despesa()
 
-        res = self.client.get(url, format='json')
+        res = self.api_client.get(url, format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -100,7 +124,8 @@ class DespesaTest(APITestCase):
         self.cadastrar_nova_despesa(
             descricao='Despesa Teste3')
 
-        res = self.client.get(url + '?descricao=Despesa Teste2', format='json')
+        res = self.api_client.get(
+            url + '?descricao=Despesa Teste2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -109,7 +134,7 @@ class DespesaTest(APITestCase):
         self.cadastrar_nova_despesa(data=date(2022, 1, 1))
         self.cadastrar_nova_despesa(data=date(2022, 2, 1))
 
-        res = self.client.get(url + '2022/2', format='json')
+        res = self.api_client.get(url + '2022/2', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 1)
@@ -126,7 +151,7 @@ class DespesaTest(APITestCase):
 
         pk = despesa.pk
 
-        res = self.client.put(f'{url}{pk}/', data=data, format='json')
+        res = self.api_client.put(f'{url}{pk}/', data=data, format='json')
 
         despesa_atualizada = Despesa.objects.get()
 
@@ -141,6 +166,6 @@ class DespesaTest(APITestCase):
 
         pk = despesa.pk
 
-        res = self.client.delete(f'{url}{pk}/', format='json')
+        res = self.api_client.delete(f'{url}{pk}/', format='json')
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
