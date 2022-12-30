@@ -4,6 +4,8 @@ from despesas.serializers import DespesaSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
 from rest_framework.generics import ListAPIView
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 
 class DespesaFilter(filters.FilterSet):
@@ -39,3 +41,10 @@ class DespesasPorMesView(ListAPIView):
         )
 
         return queryset
+
+    @swagger_auto_schema(operation_id='despesa_mes_list', manual_parameters=[
+        openapi.Parameter('ano', openapi.IN_PATH, type=openapi.TYPE_INTEGER),
+        openapi.Parameter('mes', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+    ], responses={200: DespesaSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

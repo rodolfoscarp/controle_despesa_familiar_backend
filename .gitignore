@@ -26,4 +26,5 @@ db.sqlite3-journal
 .env
 venv/
 
-
+# vscode
+.vscode/
