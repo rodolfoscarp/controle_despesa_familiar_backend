@@ -1,0 +1,22 @@
+version: '3.5'
+
+services:
+  webapp:
+    container_name: webapp
+    build: .
+    command: gunicorn setup.wsgi:application --bind 0.0.0.0:8000
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  db:
+    container_name: postgres_container
+    image: postgres
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      PGDATA: /data/postgres
+    restart: unless-stopped

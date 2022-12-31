@@ -1,0 +1,9 @@
+.pytest_cache/
+.vscode/
+venv/
+.dockerignore
+.venv.example
+.gitignore
+Dockerfile
+pytest.ini
+readme.md
